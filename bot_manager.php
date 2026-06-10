@@ -454,7 +454,7 @@ function handleUpdate($update) {
             'edit_nome_modelo' => "O *Nome da Modelo* atual é: **{$curr_nome}**\n\nDigite o novo *Nome da Modelo*:",
             'edit_username' => "O *Instagram* atual é: **{$curr_insta}**\n\nDigite o novo *Instagram* (ex: @dudinha):",
             'edit_bio' => "A *Bio/Descrição* atual é:\n`{$curr_bio}`\n\nDigite a nova *Bio/Descrição*:",
-            'edit_avatar' => "A foto de avatar atual está salva em: `{$curr_avatar}`\n\nEnvie a nova *Foto de Avatar* (Envie como Foto):",
+            'edit_avatar' => "A foto de avatar atual está salva em: `{$curr_avatar}`\n\nEnvie a nova *Foto de Avatar* (Envie como Foto) OU envie o **@username** do Instagram (ex: `@dudinha` ou `dudinha`) para buscar e sincronizar a foto automaticamente:",
             'edit_banner' => "O banner atual está salvo em: `{$curr_banner}`\n\nEnvie o novo *Banner* (Envie como Vídeo ou Foto):",
             'edit_grid' => "Você possui **{$grid_count}** mídias adicionadas no Mural.\n\nEnvie a nova foto ou vídeo para adicionar ao início do Mural/Grid:",
             'edit_modal_gif' => "A mídia do popup atual está salva em: `{$curr_modal_gif}`\n\nEnvie a nova mídia para o popup (Foto, Vídeo ou GIF):",
@@ -633,33 +633,84 @@ function handleUpdate($update) {
         if (in_array($action, ['edit_avatar', 'edit_banner', 'edit_grid', 'edit_modal_gif'])) {
             $file_id = null;
             $ext = '.jpg';
-            if (isset($update['message']['photo'])) {
-                $photos = $update['message']['photo'];
-                $file_id = end($photos)['file_id'];
-            } elseif (isset($update['message']['video'])) {
-                $file_id = $update['message']['video']['file_id'];
-                $ext = '.mp4';
-            } elseif (isset($update['message']['animation'])) {
-                $file_id = $update['message']['animation']['file_id'];
-                $ext = '.mp4';
-            }
             
-            if ($file_id) {
-                $url = getFileUrl($file_id);
-                if ($url) {
-                    $dir = ($action == 'edit_grid' || $action == 'edit_modal_gif') ? 'media/' : 'images/';
-                    $filename = $dir . $action . '_' . time() . $ext;
-                    if (downloadFile($url, $filename)) {
-                        if ($action == 'edit_grid') {
-                            if (!isset($siteData['grid'])) $siteData['grid'] = [];
-                            array_unshift($siteData['grid'], $filename);
-                        } elseif ($action == 'edit_modal_gif') {
-                            $siteData['modal_gif'] = $filename;
-                        } else {
-                            $siteData[$action] = $filename;
+            if ($action === 'edit_avatar' && $text) {
+                // Sincronizar Avatar do Instagram via texto (@username)
+                $username = trim($text, '@ ');
+                $imgUrl = "https://unavatar.io/instagram/{$username}";
+                $filename = 'images/avatar_instagram_' . time() . '.jpg';
+                
+                // Tenta baixar usando unavatar.io
+                $content = null;
+                $ch = curl_init($imgUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+                $content = curl_exec($ch);
+                curl_close($ch);
+                
+                // Se falhar, tenta raspar o instagram.com diretamente
+                if (!$content || strlen($content) < 500) {
+                    $ch = curl_init("https://www.instagram.com/{$username}/");
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'facebookexternalhit/1.1');
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                    $html = curl_exec($ch);
+                    curl_close($ch);
+                    if ($html) {
+                        preg_match('/<meta property="og:image" content="(.*?)"/', $html, $imgMatch);
+                        if (isset($imgMatch[1])) {
+                            $directUrl = html_entity_decode($imgMatch[1]);
+                            $ch = curl_init($directUrl);
+                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                            $content = curl_exec($ch);
+                            curl_close($ch);
                         }
-                        saveSiteData($siteData);
-                        $success = true;
+                    }
+                }
+                
+                if ($content && strlen($content) > 500) {
+                    file_put_contents(__DIR__ . '/' . $filename, $content);
+                    $siteData['avatar'] = $filename;
+                    $siteData['username'] = '@' . $username;
+                    saveSiteData($siteData);
+                    $success = true;
+                }
+            } else {
+                if (isset($update['message']['photo'])) {
+                    $photos = $update['message']['photo'];
+                    $file_id = end($photos)['file_id'];
+                } elseif (isset($update['message']['video'])) {
+                    $file_id = $update['message']['video']['file_id'];
+                    $ext = '.mp4';
+                } elseif (isset($update['message']['animation'])) {
+                    $file_id = $update['message']['animation']['file_id'];
+                    $ext = '.mp4';
+                }
+                
+                if ($file_id) {
+                    $url = getFileUrl($file_id);
+                    if ($url) {
+                        $dir = ($action == 'edit_grid' || $action == 'edit_modal_gif') ? 'media/' : 'images/';
+                        $filename = $dir . $action . '_' . time() . $ext;
+                        if (downloadFile($url, $filename)) {
+                            if ($action == 'edit_grid') {
+                                if (!isset($siteData['grid'])) $siteData['grid'] = [];
+                                array_unshift($siteData['grid'], $filename);
+                            } elseif ($action == 'edit_modal_gif') {
+                                $siteData['modal_gif'] = $filename;
+                            } else {
+                                $siteData[$action] = $filename;
+                            }
+                            saveSiteData($siteData);
+                            $success = true;
+                        }
                     }
                 }
             }
