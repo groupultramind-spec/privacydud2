@@ -378,6 +378,7 @@ function sendStatsDashboard($chat_id, $message_id = null) {
 
 function handleUpdate($update) {
     global $adminChatId;
+    error_log("[BOT] Recebendo e processando atualizacao do Telegram...");
     
     // Callback Queries (Cliques nos botões)
     if (isset($update['callback_query'])) {
@@ -831,6 +832,8 @@ if (php_sapi_name() === 'cli') {
     if (isset($_GET['set_webhook'])) {
         $webhookUrl = "https://" . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?');
         $res = apiRequest('setWebhook', ['url' => $webhookUrl]);
+        error_log("[WEBHOOK] Ativando webhook para: " . $webhookUrl);
+        error_log("[WEBHOOK] Resposta do Telegram: " . json_encode($res));
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $res['ok'] ?? false,
@@ -845,9 +848,11 @@ if (php_sapi_name() === 'cli') {
     $input = file_get_contents('php://input');
     $update = json_decode($input, true);
     if ($update) {
+        error_log("[WEBHOOK] Novo POST recebido do Telegram com dados de atualizacao.");
         handleUpdate($update);
         echo "OK";
     } else {
+        error_log("[WEBHOOK] Acesso recebido, mas sem dados JSON do Telegram.");
         echo "Acesso restrito.";
     }
 }

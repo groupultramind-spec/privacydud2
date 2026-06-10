@@ -103,3 +103,15 @@ function validarCPF($cpf) {
 function validarEmail($email) {
     return filter_var($email, FILTER_VALIDATE_EMAIL);
 }
+
+// Logs de Validação para exibir no Console do Servidor (ex: Shard Cloud)
+$siteDataFile = __DIR__ . '/site_data.json';
+$siteData = file_exists($siteDataFile) ? json_decode(file_get_contents($siteDataFile), true) : [];
+
+error_log("[VALIDACAO SYSTEM] Iniciando carregamento das configuracoes...");
+error_log("[VALIDACAO SYSTEM] Ambiente/Host: " . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+error_log("[VALIDACAO SYSTEM] Chave BuyPix: " . (empty($configDb['BUYPIX_API_KEY']) || str_contains($configDb['BUYPIX_API_KEY'], 'sua_') ? '❌ Nao configurada' : '🟢 OK'));
+error_log("[VALIDACAO SYSTEM] Telegram Bot Token: " . (empty($configDb['TELEGRAM_BOT_TOKEN']) || str_contains($configDb['TELEGRAM_BOT_TOKEN'], 'Token') ? '❌ Nao configurado' : '🟢 OK'));
+error_log("[VALIDACAO SYSTEM] Telegram Chat ID: " . (empty($configDb['TELEGRAM_CHAT_ID']) ? '❌ Nao configurado' : '🟢 OK'));
+error_log("[VALIDACAO SYSTEM] WhatsApp da Modelo: " . (empty($siteData['whatsapp']) ? '⚠️ Nao configurado no Painel' : '🟢 OK (' . $siteData['whatsapp'] . ')'));
+error_log("[VALIDACAO SYSTEM] Sistema pronto para processar leads com exito!");
