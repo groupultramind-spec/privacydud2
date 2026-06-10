@@ -336,356 +336,388 @@ function sendStatsDashboard($chat_id, $message_id = null) {
     }
 }
 
-echo "Iniciando Long Polling...\n";
-$offset = 0;
-
-while (true) {
-    $updates = apiRequest('getUpdates', ['offset' => $offset, 'timeout' => 30]);
-    if (isset($updates['result'])) {
-        foreach ($updates['result'] as $update) {
-            $offset = $update['update_id'] + 1;
+function handleUpdate($update) {
+    global $adminChatId;
+    
+    // Callback Queries (Cliques nos botões)
+    if (isset($update['callback_query'])) {
+        $chat_id = $update['callback_query']['message']['chat']['id'];
+        if ($chat_id != $adminChatId) return;
+        
+        $data = $update['callback_query']['data'];
+        $message_id = $update['callback_query']['message']['message_id'];
+        
+        if ($data == 'cancel') {
+            setState(null);
+            sendMainMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+            return;
+        }
+        
+        if ($data == 'menu_principal') {
+            setState(null);
+            sendMainMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+            return;
+        }
+        
+        if ($data == 'menu_precos') {
+            setState(null);
+            sendPrecosMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+            return;
+        }
+        
+        if ($data == 'menu_configs') {
+            setState(null);
+            sendConfigsMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+            return;
+        }
+        
+        if ($data == 'menu_payouts') {
+            setState(null);
+            sendPayoutsMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+            return;
+        }
+        
+        if ($data == 'menu_stats') {
+            setState(null);
+            sendStatsDashboard($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+            return;
+        }
+        
+        if ($data == 'cycle_cfg_source') {
+            $siteData = getSiteData();
+            if (!isset($siteData['config'])) $siteData['config'] = [];
+            $current = $siteData['config']['media_source'] ?? 'misto';
             
-            // Callback Queries (Cliques nos botões)
-            if (isset($update['callback_query'])) {
-                $chat_id = $update['callback_query']['message']['chat']['id'];
-                if ($chat_id != $adminChatId) continue;
-                
-                $data = $update['callback_query']['data'];
-                $message_id = $update['callback_query']['message']['message_id'];
-                
-                if ($data == 'cancel') {
-                    setState(null);
-                    sendMainMenu($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
-                    continue;
-                }
-                
-                if ($data == 'menu_principal') {
-                    setState(null);
-                    sendMainMenu($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
-                    continue;
-                }
-                
-                if ($data == 'menu_precos') {
-                    setState(null);
-                    sendPrecosMenu($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
-                    continue;
-                }
-                
-                if ($data == 'menu_configs') {
-                    setState(null);
-                    sendConfigsMenu($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
-                    continue;
-                }
-                
-                if ($data == 'menu_payouts') {
-                    setState(null);
-                    sendPayoutsMenu($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
-                    continue;
-                }
-                
-                if ($data == 'menu_stats') {
-                    setState(null);
-                    sendStatsDashboard($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
-                    continue;
-                }
-                
-                if ($data == 'cycle_cfg_source') {
-                    $siteData = getSiteData();
-                    if (!isset($siteData['config'])) $siteData['config'] = [];
-                    $current = $siteData['config']['media_source'] ?? 'misto';
-                    
-                    $next = 'misto';
-                    if ($current === 'misto') $next = 'padrao';
-                    elseif ($current === 'padrao') $next = 'adicionadas';
-                    
-                    $siteData['config']['media_source'] = $next;
-                    saveSiteData($siteData);
-                    
-                    sendConfigsMenu($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id'], 'text' => "Fonte de mídia: " . strtoupper($next)]);
-                    continue;
-                }
-                
-                if ($data == 'cycle_cfg_display') {
-                    $siteData = getSiteData();
-                    if (!isset($siteData['config'])) $siteData['config'] = [];
-                    $current = $siteData['config']['media_display'] ?? 'misto';
-                    
-                    $next = 'misto';
-                    if ($current === 'misto') $next = 'padrao';
-                    elseif ($current === 'padrao') $next = 'carrosel';
-                    
-                    $siteData['config']['media_display'] = $next;
-                    saveSiteData($siteData);
-                    
-                    sendConfigsMenu($chat_id, $message_id);
-                    apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id'], 'text' => "Modo de exibição: " . strtoupper($next)]);
-                    continue;
-                }
-                
-                setState($data);
-                
-                // Mostrar status atual de todas as ações de confirmação
-                $siteData = getSiteData();
-                $precos = $siteData['precos'] ?? [];
-                $cfg = $siteData['config'] ?? [];
-                
-                $curr_nome = $siteData['nome_modelo'] ?? 'Eduarda Oficial';
-                $curr_insta = $siteData['username'] ?? '@eduardaoficial1_';
-                $curr_bio = $siteData['bio'] ?? 'N/A';
-                $curr_avatar = $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg';
-                $curr_banner = $siteData['banner'] ?? 'media/videoeduarda2.mp4';
-                $curr_modal_gif = $siteData['modal_gif'] ?? 'images/modal_gif.gif';
-                $curr_whatsapp = $siteData['whatsapp'] ?? 'N/A';
-                $curr_blur = $cfg['blur_level'] ?? '10';
-                $grid_count = isset($siteData['grid']) ? count($siteData['grid']) : 0;
-                
-                $curr_mensal = $precos['mensal'] ?? '32.99';
-                $curr_semanal = $precos['semanal'] ?? '19.90';
-                $curr_trimestral = $precos['trimestral'] ?? '121.00';
-                $curr_anual = $precos['anual'] ?? '299.00';
-                $curr_vitalicio = $precos['vitalicio'] ?? '525.50';
-                $curr_pacote = $precos['pacote_video'] ?? '14.90';
-                $curr_desconto = $precos['desconto'] ?? '9.90';
-                
-                $curr_taxa = $siteData['payouts']['taxa'] ?? '2.99';
-                $curr_sacado = $siteData['payouts']['sacado'] ?? '0.00';
-
-                $msgs = [
-                    'edit_nome_modelo' => "O *Nome da Modelo* atual é: **{$curr_nome}**\n\nDigite o novo *Nome da Modelo*:",
-                    'edit_username' => "O *Instagram* atual é: **{$curr_insta}**\n\nDigite o novo *Instagram* (ex: @dudinha):",
-                    'edit_bio' => "A *Bio/Descrição* atual é:\n`{$curr_bio}`\n\nDigite a nova *Bio/Descrição*:",
-                    'edit_avatar' => "A foto de avatar atual está salva em: `{$curr_avatar}`\n\nEnvie a nova *Foto de Avatar* (Envie como Foto):",
-                    'edit_banner' => "O banner atual está salvo em: `{$curr_banner}`\n\nEnvie o novo *Banner* (Envie como Vídeo ou Foto):",
-                    'edit_grid' => "Você possui **{$grid_count}** mídias adicionadas no Mural.\n\nEnvie a nova foto ou vídeo para adicionar ao início do Mural/Grid:",
-                    'edit_modal_gif' => "A mídia do popup atual está salva em: `{$curr_modal_gif}`\n\nEnvie a nova mídia para o popup (Foto, Vídeo ou GIF):",
-                    'edit_whatsapp' => "O *WhatsApp* atual é: **+{$curr_whatsapp}**\n\nDigite o novo *WhatsApp* (somente números, ex: 5511999999999):",
-                    
-                    // Preços
-                    'edit_p_mensal' => "O preço atual do plano *Mensal* é R$ **{$curr_mensal}**.\n\nDigite o novo preço (ex: 29.90):",
-                    'edit_p_semanal' => "O preço atual do plano *Semanal* é R$ **{$curr_semanal}**.\n\nDigite o novo preço (ex: 14.90):",
-                    'edit_p_trimestral' => "O preço atual do plano *Trimestral* é R$ **{$curr_trimestral}**.\n\nDigite o novo preço (ex: 89.90):",
-                    'edit_p_anual' => "O preço atual do plano *Anual* é R$ **{$curr_anual}**.\n\nDigite o novo preço (ex: 199.90):",
-                    'edit_p_vitalicio' => "O preço atual do plano *Vitalício* é R$ **{$curr_vitalicio}**.\n\nDigite o novo preço (ex: 399.90):",
-                    'edit_p_pacote_video' => "O preço atual do *Pacote de Vídeo* é R$ **{$curr_pacote}**.\n\nDigite o novo preço (ex: 19.90):",
-                    'edit_p_desconto' => "O preço atual com *Desconto* é R$ **{$curr_desconto}**.\n\nDigite o novo preço (ex: 9.90):",
-                    
-                    // Configurações
-                    'edit_cfg_blur' => "O nível de blur atual é **{$curr_blur}px**.\n\nDigite o novo *Nível de Blur* das mídias em pixels (ex: 8):",
-                    
-                    // Payouts
-                    'edit_payout_taxa' => "A taxa de saque atual é **{$curr_taxa}%**.\n\nDigite a nova taxa de saque (ex: 2.5):",
-                    'edit_payout_sacado' => "O valor total sacado atual é R$ **" . number_format(floatval($curr_sacado), 2, ',', '.') . "**.\n\nDigite o novo valor total sacado (ex: 1500.00):"
-                ];
-                
-                if (isset($msgs[$data])) {
-                    $cancelTarget = str_starts_with($data, 'edit_p_') ? 'menu_precos' : (str_starts_with($data, 'edit_cfg_') ? 'menu_configs' : (str_starts_with($data, 'edit_payout_') ? 'menu_payouts' : 'cancel'));
-                    apiRequest('editMessageText', [
-                        'chat_id' => $chat_id,
-                        'message_id' => $message_id,
-                        'text' => $msgs[$data] . "\n\n_Ou clique em Cancelar para voltar._",
-                        'parse_mode' => 'Markdown',
-                        'reply_markup' => ['inline_keyboard' => [[['text' => '❌ Cancelar', 'callback_data' => $cancelTarget]]]]
-                    ]);
-                }
-                
-                apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
-            }
+            $next = 'misto';
+            if ($current === 'misto') $next = 'padrao';
+            elseif ($current === 'padrao') $next = 'adicionadas';
             
-            // Text Messages and Media
-            if (isset($update['message'])) {
-                $chat_id = $update['message']['chat']['id'];
-                if ($chat_id != $adminChatId) continue;
-                
-                $text = $update['message']['text'] ?? '';
-                if ($text === '/start' || $text === '/menu' || $text === '/painel') {
-                    setState(null);
-                    sendMainMenu($chat_id);
-                    continue;
-                }
-                
-                $siteData = getSiteData();
-                $success = false;
-                
-                // Lógica de Sincronização Automática do Instagram
-                if ($text && str_starts_with($text, '@')) {
-                    $username = trim($text, '@ ');
-                    $ch = curl_init("https://www.instagram.com/{$username}/");
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'facebookexternalhit/1.1');
-                    $html = curl_exec($ch);
-                    curl_close($ch);
+            $siteData['config']['media_source'] = $next;
+            saveSiteData($siteData);
+            
+            sendConfigsMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id'], 'text' => "Fonte de mídia: " . strtoupper($next)]);
+            return;
+        }
+        
+        if ($data == 'cycle_cfg_display') {
+            $siteData = getSiteData();
+            if (!isset($siteData['config'])) $siteData['config'] = [];
+            $current = $siteData['config']['media_display'] ?? 'misto';
+            
+            $next = 'misto';
+            if ($current === 'misto') $next = 'padrao';
+            elseif ($current === 'padrao') $next = 'carrosel';
+            
+            $siteData['config']['media_display'] = $next;
+            saveSiteData($siteData);
+            
+            sendConfigsMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id'], 'text' => "Modo de exibição: " . strtoupper($next)]);
+            return;
+        }
+        
+        setState($data);
+        
+        $siteData = getSiteData();
+        $precos = $siteData['precos'] ?? [];
+        $cfg = $siteData['config'] ?? [];
+        
+        $curr_nome = $siteData['nome_modelo'] ?? 'Eduarda Oficial';
+        $curr_insta = $siteData['username'] ?? '@eduardaoficial1_';
+        $curr_bio = $siteData['bio'] ?? 'N/A';
+        $curr_avatar = $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg';
+        $curr_banner = $siteData['banner'] ?? 'media/videoeduarda2.mp4';
+        $curr_modal_gif = $siteData['modal_gif'] ?? 'images/modal_gif.gif';
+        $curr_whatsapp = $siteData['whatsapp'] ?? 'N/A';
+        $curr_blur = $cfg['blur_level'] ?? '10';
+        $grid_count = isset($siteData['grid']) ? count($siteData['grid']) : 0;
+        
+        $curr_mensal = $precos['mensal'] ?? '32.99';
+        $curr_semanal = $precos['semanal'] ?? '19.90';
+        $curr_trimestral = $precos['trimestral'] ?? '121.00';
+        $curr_anual = $precos['anual'] ?? '299.00';
+        $curr_vitalicio = $precos['vitalicio'] ?? '525.50';
+        $curr_pacote = $precos['pacote_video'] ?? '14.90';
+        $curr_desconto = $precos['desconto'] ?? '9.90';
+        
+        $curr_taxa = $siteData['payouts']['taxa'] ?? '2.99';
+        $curr_sacado = $siteData['payouts']['sacado'] ?? '0.00';
+
+        $msgs = [
+            'edit_nome_modelo' => "O *Nome da Modelo* atual é: **{$curr_nome}**\n\nDigite o novo *Nome da Modelo*:",
+            'edit_username' => "O *Instagram* atual é: **{$curr_insta}**\n\nDigite o novo *Instagram* (ex: @dudinha):",
+            'edit_bio' => "A *Bio/Descrição* atual é:\n`{$curr_bio}`\n\nDigite a nova *Bio/Descrição*:",
+            'edit_avatar' => "A foto de avatar atual está salva em: `{$curr_avatar}`\n\nEnvie a nova *Foto de Avatar* (Envie como Foto):",
+            'edit_banner' => "O banner atual está salvo em: `{$curr_banner}`\n\nEnvie o novo *Banner* (Envie como Vídeo ou Foto):",
+            'edit_grid' => "Você possui **{$grid_count}** mídias adicionadas no Mural.\n\nEnvie a nova foto ou vídeo para adicionar ao início do Mural/Grid:",
+            'edit_modal_gif' => "A mídia do popup atual está salva em: `{$curr_modal_gif}`\n\nEnvie a nova mídia para o popup (Foto, Vídeo ou GIF):",
+            'edit_whatsapp' => "O *WhatsApp* atual é: **+{$curr_whatsapp}**\n\nDigite o novo *WhatsApp* (somente números, ex: 5511999999999):",
+            
+            // Preços
+            'edit_p_mensal' => "O preço atual do plano *Mensal* é R$ **{$curr_mensal}**.\n\nDigite o novo preço (ex: 29.90):",
+            'edit_p_semanal' => "O preço atual do plano *Semanal* é R$ **{$curr_semanal}**.\n\nDigite o novo preço (ex: 14.90):",
+            'edit_p_trimestral' => "O preço atual do plano *Trimestral* é R$ **{$curr_trimestral}**.\n\nDigite o novo preço (ex: 89.90):",
+            'edit_p_anual' => "O preço atual do plano *Anual* é R$ **{$curr_anual}**.\n\nDigite o novo preço (ex: 199.90):",
+            'edit_p_vitalicio' => "O preço atual do plano *Vitalício* é R$ **{$curr_vitalicio}**.\n\nDigite o novo preço (ex: 399.90):",
+            'edit_p_pacote_video' => "O preço atual do *Pacote de Vídeo* é R$ **{$curr_pacote}**.\n\nDigite o novo preço (ex: 19.90):",
+            'edit_p_desconto' => "O preço atual com *Desconto* é R$ **{$curr_desconto}**.\n\nDigite o novo preço (ex: 9.90):",
+            
+            // Configurações
+            'edit_cfg_blur' => "O nível de blur atual é **{$curr_blur}px**.\n\nDigite o novo *Nível de Blur* das mídias em pixels (ex: 8):",
+            
+            // Payouts
+            'edit_payout_taxa' => "A taxa de saque atual é **{$curr_taxa}%**.\n\nDigite a nova taxa de saque (ex: 2.5):",
+            'edit_payout_sacado' => "O valor total sacado atual é R$ **" . number_format(floatval($curr_sacado), 2, ',', '.') . "**.\n\nDigite o novo valor total sacado (ex: 1500.00):"
+        ];
+        
+        if (isset($msgs[$data])) {
+            $cancelTarget = str_starts_with($data, 'edit_p_') ? 'menu_precos' : (str_starts_with($data, 'edit_cfg_') ? 'menu_configs' : (str_starts_with($data, 'edit_payout_') ? 'menu_payouts' : 'cancel'));
+            apiRequest('editMessageText', [
+                'chat_id' => $chat_id,
+                'message_id' => $message_id,
+                'text' => $msgs[$data] . "\n\n_Ou clique em Cancelar para voltar._",
+                'parse_mode' => 'Markdown',
+                'reply_markup' => ['inline_keyboard' => [[['text' => '❌ Cancelar', 'callback_data' => $cancelTarget]]]]
+            ]);
+        }
+        
+        apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+        return;
+    }
+    
+    // Text Messages and Media
+    if (isset($update['message'])) {
+        $chat_id = $update['message']['chat']['id'];
+        if ($chat_id != $adminChatId) return;
+        
+        $text = $update['message']['text'] ?? '';
+        if ($text === '/start' || $text === '/menu' || $text === '/painel') {
+            setState(null);
+            sendMainMenu($chat_id);
+            return;
+        }
+        
+        $siteData = getSiteData();
+        $success = false;
+        
+        // Lógica de Sincronização Automática do Instagram
+        if ($text && str_starts_with($text, '@')) {
+            $username = trim($text, '@ ');
+            $ch = curl_init("https://www.instagram.com/{$username}/");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'facebookexternalhit/1.1');
+            $html = curl_exec($ch);
+            curl_close($ch);
+            
+            if ($html) {
+                preg_match('/<meta property="og:title" content="(.*?)"/', $html, $titleMatch);
+                preg_match('/<meta property="og:image" content="(.*?)"/', $html, $imgMatch);
+                if (isset($titleMatch[1]) && isset($imgMatch[1])) {
+                    $siteData['nome_modelo'] = explode('(', html_entity_decode($titleMatch[1]))[0] ?? $username;
+                    $siteData['username'] = $text;
                     
-                    if ($html) {
-                        preg_match('/<meta property="og:title" content="(.*?)"/', $html, $titleMatch);
-                        preg_match('/<meta property="og:image" content="(.*?)"/', $html, $imgMatch);
-                        if (isset($titleMatch[1]) && isset($imgMatch[1])) {
-                            $siteData['nome_modelo'] = explode('(', html_entity_decode($titleMatch[1]))[0] ?? $username;
-                            $siteData['username'] = $text;
-                            
-                            $imgUrl = html_entity_decode($imgMatch[1]);
-                            $filename = 'images/avatar_' . time() . '.jpg';
-                            if (downloadFile($imgUrl, $filename)) {
-                                $siteData['avatar'] = $filename;
-                            }
-                            saveSiteData($siteData);
-                            apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Perfil do Instagram sincronizado com sucesso! (Nome, @ e Foto)"]);
-                            setState(null);
-                            sendMainMenu($chat_id);
-                            continue;
-                        }
+                    $imgUrl = html_entity_decode($imgMatch[1]);
+                    $filename = 'images/avatar_' . time() . '.jpg';
+                    if (downloadFile($imgUrl, $filename)) {
+                        $siteData['avatar'] = $filename;
                     }
-                }
-                
-                $state = getState();
-                $action = $state['action'];
-                if (!$action) continue;
-                
-                // Salvar Preços dos Planos
-                if (str_starts_with($action, 'edit_p_') && $text) {
-                    $planKey = str_replace('edit_p_', '', $action);
-                    $priceValue = floatval(str_replace(',', '.', $text));
-                    if ($priceValue > 0) {
-                        if (!isset($siteData['precos'])) $siteData['precos'] = [];
-                        $siteData['precos'][$planKey] = $priceValue;
-                        saveSiteData($siteData);
-                        apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Preço do plano *{$planKey}* atualizado para R$ " . number_format($priceValue, 2, ',', '.') . "!", 'parse_mode' => 'Markdown']);
-                        setState(null);
-                        sendPrecosMenu($chat_id);
-                        continue;
-                    }
-                }
-                
-                // Salvar Saques e Taxas
-                if ($action === 'edit_payout_taxa' && $text) {
-                    $taxaValue = floatval(str_replace(',', '.', $text));
-                    if ($taxaValue >= 0) {
-                        if (!isset($siteData['payouts'])) $siteData['payouts'] = [];
-                        $siteData['payouts']['taxa'] = $taxaValue;
-                        saveSiteData($siteData);
-                        apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Taxa de saque atualizada para *{$taxaValue}%*!", 'parse_mode' => 'Markdown']);
-                        setState(null);
-                        sendPayoutsMenu($chat_id);
-                        continue;
-                    }
-                }
-                
-                if ($action === 'edit_payout_sacado' && $text) {
-                    $sacadoValue = floatval(str_replace(',', '.', $text));
-                    if ($sacadoValue >= 0) {
-                        if (!isset($siteData['payouts'])) $siteData['payouts'] = [];
-                        $currentSacado = floatval($siteData['payouts']['sacado'] ?? 0);
-                        $newTotal = $currentSacado + $sacadoValue;
-                        $siteData['payouts']['sacado'] = $newTotal;
-                        saveSiteData($siteData);
-                        apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Novo saque de *R$ " . number_format($sacadoValue, 2, ',', '.') . "* registrado!\n💰 Total sacado: *R$ " . number_format($newTotal, 2, ',', '.') . "*", 'parse_mode' => 'Markdown']);
-                        setState(null);
-                        sendPayoutsMenu($chat_id);
-                        continue;
-                    }
-                }
-                
-                // Salvar Configurações Gerais
-                if ($action === 'edit_cfg_blur' && $text) {
-                    $blurValue = intval($text);
-                    if ($blurValue >= 0) {
-                        if (!isset($siteData['config'])) $siteData['config'] = [];
-                        $siteData['config']['blur_level'] = $blurValue;
-                        saveSiteData($siteData);
-                        apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Nível de desfocagem atualizado para *{$blurValue}px*!", 'parse_mode' => 'Markdown']);
-                        setState(null);
-                        sendConfigsMenu($chat_id);
-                        continue;
-                    }
-                }
-                
-                // Salvar WhatsApp da Modelo
-                if ($action === 'edit_whatsapp' && $text) {
-                    $whatsappClean = preg_replace('/\D/', '', $text);
-                    if (strlen($whatsappClean) < 12 || strlen($whatsappClean) > 13 || !str_starts_with($whatsappClean, '55')) {
-                        apiRequest('sendMessage', [
-                            'chat_id' => $chat_id,
-                            'text' => "❌ *WhatsApp Inválido!*\n\nUse o formato com DDI e DDD: *55* + DDD + número (ex: *5511999999999*). Deve conter de 12 a 13 dígitos e iniciar com 55.",
-                            'parse_mode' => 'Markdown'
-                        ]);
-                        continue;
-                    }
-                    $siteData['whatsapp'] = $whatsappClean;
                     saveSiteData($siteData);
-                    apiRequest('sendMessage', [
-                        'chat_id' => $chat_id,
-                        'text' => "✅ *WhatsApp da Modelo atualizado com sucesso!*\n\nNúmero: +{$whatsappClean}",
-                        'parse_mode' => 'Markdown'
-                    ]);
+                    apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Perfil do Instagram sincronizado com sucesso! (Nome, @ e Foto)"]);
                     setState(null);
                     sendMainMenu($chat_id);
-                    continue;
-                }
-                
-                // Texto Geral (Nome, Instagram, Bio)
-                if (in_array($action, ['edit_nome_modelo', 'edit_username', 'edit_bio']) && $text) {
-                    $siteData[$action] = $text;
-                    saveSiteData($siteData);
-                    $success = true;
-                }
-                
-                // Imagens/Video (Avatar, Banner, Grid, Modal Gif)
-                if (in_array($action, ['edit_avatar', 'edit_banner', 'edit_grid', 'edit_modal_gif'])) {
-                    $file_id = null;
-                    $ext = '.jpg';
-                    if (isset($update['message']['photo'])) {
-                        $photos = $update['message']['photo'];
-                        $file_id = end($photos)['file_id'];
-                    } elseif (isset($update['message']['video'])) {
-                        $file_id = $update['message']['video']['file_id'];
-                        $ext = '.mp4';
-                    } elseif (isset($update['message']['animation'])) {
-                        $file_id = $update['message']['animation']['file_id'];
-                        $ext = '.mp4';
-                    }
-                    
-                    if ($file_id) {
-                        $url = getFileUrl($file_id);
-                        if ($url) {
-                            $dir = ($action == 'edit_grid' || $action == 'edit_modal_gif') ? 'media/' : 'images/';
-                            $filename = $dir . $action . '_' . time() . $ext;
-                            if (downloadFile($url, $filename)) {
-                                if ($action == 'edit_grid') {
-                                    if (!isset($siteData['grid'])) $siteData['grid'] = [];
-                                    array_unshift($siteData['grid'], $filename);
-                                } elseif ($action == 'edit_modal_gif') {
-                                    $siteData['modal_gif'] = $filename;
-                                } else {
-                                    $siteData[$action] = $filename;
-                                }
-                                saveSiteData($siteData);
-                                $success = true;
-                            }
-                        }
-                    }
-                }
-                
-                if ($success) {
-                    apiRequest('sendMessage', [
-                        'chat_id' => $chat_id,
-                        'text' => "✅ Atualizado com sucesso no site!"
-                    ]);
-                    setState(null);
-                    sendMainMenu($chat_id);
-                } else {
-                    apiRequest('sendMessage', [
-                        'chat_id' => $chat_id,
-                        'text' => "❌ Erro ou formato inválido. Tente novamente."
-                    ]);
+                    return;
                 }
             }
         }
+        
+        $state = getState();
+        $action = $state['action'];
+        if (!$action) return;
+        
+        // Salvar Preços dos Planos
+        if (str_starts_with($action, 'edit_p_') && $text) {
+            $planKey = str_replace('edit_p_', '', $action);
+            $priceValue = floatval(str_replace(',', '.', $text));
+            if ($priceValue > 0) {
+                if (!isset($siteData['precos'])) $siteData['precos'] = [];
+                $siteData['precos'][$planKey] = $priceValue;
+                saveSiteData($siteData);
+                apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Preço do plano *{$planKey}* atualizado para R$ " . number_format($priceValue, 2, ',', '.') . "!", 'parse_mode' => 'Markdown']);
+                setState(null);
+                sendPrecosMenu($chat_id);
+                return;
+            }
+        }
+        
+        // Salvar Saques e Taxas
+        if ($action === 'edit_payout_taxa' && $text) {
+            $taxaValue = floatval(str_replace(',', '.', $text));
+            if ($taxaValue >= 0) {
+                if (!isset($siteData['payouts'])) $siteData['payouts'] = [];
+                $siteData['payouts']['taxa'] = $taxaValue;
+                saveSiteData($siteData);
+                apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Taxa de saque atualizada para *{$taxaValue}%*!", 'parse_mode' => 'Markdown']);
+                setState(null);
+                sendPayoutsMenu($chat_id);
+                return;
+            }
+        }
+        
+        if ($action === 'edit_payout_sacado' && $text) {
+            $sacadoValue = floatval(str_replace(',', '.', $text));
+            if ($sacadoValue >= 0) {
+                if (!isset($siteData['payouts'])) $siteData['payouts'] = [];
+                $currentSacado = floatval($siteData['payouts']['sacado'] ?? 0);
+                $newTotal = $currentSacado + $sacadoValue;
+                $siteData['payouts']['sacado'] = $newTotal;
+                saveSiteData($siteData);
+                apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Novo saque de *R$ " . number_format($sacadoValue, 2, ',', '.') . "* registrado!\n💰 Total sacado: *R$ " . number_format($newTotal, 2, ',', '.') . "*", 'parse_mode' => 'Markdown']);
+                setState(null);
+                sendPayoutsMenu($chat_id);
+                return;
+            }
+        }
+        
+        // Salvar Configurações Gerais
+        if ($action === 'edit_cfg_blur' && $text) {
+            $blurValue = intval($text);
+            if ($blurValue >= 0) {
+                if (!isset($siteData['config'])) $siteData['config'] = [];
+                $siteData['config']['blur_level'] = $blurValue;
+                saveSiteData($siteData);
+                apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Nível de desfocagem atualizado para *{$blurValue}px*!", 'parse_mode' => 'Markdown']);
+                setState(null);
+                sendConfigsMenu($chat_id);
+                return;
+            }
+        }
+        
+        // Salvar WhatsApp da Modelo
+        if ($action === 'edit_whatsapp' && $text) {
+            $whatsappClean = preg_replace('/\D/', '', $text);
+            if (strlen($whatsappClean) < 12 || strlen($whatsappClean) > 13 || !str_starts_with($whatsappClean, '55')) {
+                apiRequest('sendMessage', [
+                    'chat_id' => $chat_id,
+                    'text' => "❌ *WhatsApp Inválido!*\n\nUse o formato com DDI e DDD: *55* + DDD + número (ex: *5511999999999*). Deve conter de 12 a 13 dígitos e iniciar com 55.",
+                    'parse_mode' => 'Markdown'
+                ]);
+                return;
+            }
+            $siteData['whatsapp'] = $whatsappClean;
+            saveSiteData($siteData);
+            apiRequest('sendMessage', [
+                'chat_id' => $chat_id,
+                'text' => "✅ *WhatsApp da Modelo atualizado com sucesso!*\n\nNúmero: +{$whatsappClean}",
+                'parse_mode' => 'Markdown'
+            ]);
+            setState(null);
+            sendMainMenu($chat_id);
+            return;
+        }
+        
+        // Texto Geral (Nome, Instagram, Bio)
+        if (in_array($action, ['edit_nome_modelo', 'edit_username', 'edit_bio']) && $text) {
+            $siteData[$action] = $text;
+            saveSiteData($siteData);
+            $success = true;
+        }
+        
+        // Imagens/Video (Avatar, Banner, Grid, Modal Gif)
+        if (in_array($action, ['edit_avatar', 'edit_banner', 'edit_grid', 'edit_modal_gif'])) {
+            $file_id = null;
+            $ext = '.jpg';
+            if (isset($update['message']['photo'])) {
+                $photos = $update['message']['photo'];
+                $file_id = end($photos)['file_id'];
+            } elseif (isset($update['message']['video'])) {
+                $file_id = $update['message']['video']['file_id'];
+                $ext = '.mp4';
+            } elseif (isset($update['message']['animation'])) {
+                $file_id = $update['message']['animation']['file_id'];
+                $ext = '.mp4';
+            }
+            
+            if ($file_id) {
+                $url = getFileUrl($file_id);
+                if ($url) {
+                    $dir = ($action == 'edit_grid' || $action == 'edit_modal_gif') ? 'media/' : 'images/';
+                    $filename = $dir . $action . '_' . time() . $ext;
+                    if (downloadFile($url, $filename)) {
+                        if ($action == 'edit_grid') {
+                            if (!isset($siteData['grid'])) $siteData['grid'] = [];
+                            array_unshift($siteData['grid'], $filename);
+                        } elseif ($action == 'edit_modal_gif') {
+                            $siteData['modal_gif'] = $filename;
+                        } else {
+                            $siteData[$action] = $filename;
+                        }
+                        saveSiteData($siteData);
+                        $success = true;
+                    }
+                }
+            }
+        }
+        
+        if ($success) {
+            apiRequest('sendMessage', [
+                'chat_id' => $chat_id,
+                'text' => "✅ Atualizado com sucesso no site!"
+            ]);
+            setState(null);
+            sendMainMenu($chat_id);
+        } else {
+            apiRequest('sendMessage', [
+                'chat_id' => $chat_id,
+                'text' => "❌ Erro ou formato inválido. Tente novamente."
+            ]);
+        }
     }
-    sleep(1);
+}
+
+// Lógica de Direcionamento (CLI/Long Polling ou Webhook/HTTP POST)
+if (php_sapi_name() === 'cli') {
+    echo "Iniciando Long Polling...\n";
+    $offset = 0;
+    while (true) {
+        $updates = apiRequest('getUpdates', ['offset' => $offset, 'timeout' => 30]);
+        if (isset($updates['result'])) {
+            foreach ($updates['result'] as $update) {
+                $offset = $update['update_id'] + 1;
+                handleUpdate($update);
+            }
+        }
+        sleep(1);
+    }
+} else {
+    // Modo Webhook para Servidor de Produção (ex: KingHost)
+    // Para configurar, acesse: https://seu-dominio.com/bot_manager.php?set_webhook=true
+    if (isset($_GET['set_webhook'])) {
+        $webhookUrl = "https://" . $_SERVER['HTTP_HOST'] . strtok($_SERVER['REQUEST_URI'], '?');
+        $res = apiRequest('setWebhook', ['url' => $webhookUrl]);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $res['ok'] ?? false,
+            'message' => $res['ok'] ? "Webhook configurado com sucesso!" : "Erro ao configurar webhook.",
+            'url' => $webhookUrl,
+            'details' => $res
+        ], JSON_PRETTY_PRINT);
+        exit;
+    }
+
+    // Processar atualizações vindas do Webhook (POST do Telegram)
+    $input = file_get_contents('php://input');
+    $update = json_decode($input, true);
+    if ($update) {
+        handleUpdate($update);
+        echo "OK";
+    } else {
+        echo "Acesso restrito.";
+    }
 }
