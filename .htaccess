@@ -29,8 +29,8 @@ Options -Indexes
     # Permitir acesso direto (sem referer) - IMPORTANTE para aba anônima!
     RewriteCond %{HTTP_REFERER} !^$
     
-    # Permitir acesso do próprio domínio (com e sem www)
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?jceclick\.shop [NC]
+    # Permitir acesso do próprio domínio dinamicamente
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?%{HTTP_HOST} [NC]
     
     # Bloquear o resto
     RewriteRule \.(jpg|jpeg|png|gif|webp|mp4)$ - [F]
