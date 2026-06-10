@@ -26,11 +26,11 @@ Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # Permitir acesso direto (sem referer) - IMPORTANTE para aba anônima!
-    RewriteCond %{HTTP_REFERER} !^$
+    # Comparar o Referer dinamicamente com o Host atual
+    RewriteCond %{HTTP_HOST}@@%{HTTP_REFERER} !^([^@]+)@@https?://(www\.)?\1 [NC]
     
-    # Permitir acesso do próprio domínio dinamicamente
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?%{HTTP_HOST} [NC]
+    # Bloquear se o referer não for vazio
+    RewriteCond %{HTTP_REFERER} !^$
     
     # Bloquear o resto
     RewriteRule \.(jpg|jpeg|png|gif|webp|mp4)$ - [F]
