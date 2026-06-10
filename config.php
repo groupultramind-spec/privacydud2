@@ -30,8 +30,24 @@ if (file_exists($secureConfigFile)) {
     if (is_array($loaded)) {
         $configDb = array_merge($configDb, $loaded);
     }
-} else {
-    // Salva o inicial para garantir que o arquivo exista
+}
+
+// Tentar ler das variáveis de ambiente da nuvem (ex: Shard Cloud)
+$envKeys = [
+    'BUYPIX_API_KEY', 'BUYPIX_WEBHOOK_SECRET', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID',
+    'EMAIL_FROM', 'EMAIL_FROM_NAME', 'EMAIL_SUBJECT', 'SMTP_HOST', 'SMTP_PORT',
+    'SMTP_USER', 'SMTP_PASSWORD', 'ACCESS_LINK', 'ACCESS_TOKEN_SALT'
+];
+
+foreach ($envKeys as $key) {
+    $val = getenv($key);
+    if ($val !== false && $val !== '') {
+        $configDb[$key] = $val;
+    }
+}
+
+// Se o arquivo local não existia e não estamos em produção com envs, salva um de fallback
+if (!file_exists($secureConfigFile) && !getenv('BUYPIX_API_KEY')) {
     file_put_contents($secureConfigFile, json_encode($configDb, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 }
 
