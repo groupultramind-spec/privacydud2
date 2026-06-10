@@ -60,6 +60,14 @@ function downloadFile($url, $saveTo) {
 }
 
 function sendMainMenu($chat_id, $message_id = null) {
+    $siteData = getSiteData();
+    $curr_nome = $siteData['nome_modelo'] ?? 'Eduarda Oficial';
+    $curr_insta = $siteData['username'] ?? '@eduardaoficial1_';
+    $curr_whatsapp = $siteData['whatsapp'] ?? 'Não configurado';
+    $curr_avatar = $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg';
+    $curr_banner = $siteData['banner'] ?? 'media/videoeduarda2.mp4';
+    $grid_count = isset($siteData['grid']) ? count($siteData['grid']) : 0;
+
     $keyboard = [
         'inline_keyboard' => [
             [['text' => '✏️ Editar Nome', 'callback_data' => 'edit_nome_modelo'], ['text' => '📸 Editar Avatar', 'callback_data' => 'edit_avatar']],
@@ -72,9 +80,19 @@ function sendMainMenu($chat_id, $message_id = null) {
             [['text' => '❌ Cancelar', 'callback_data' => 'cancel']]
         ]
     ];
+    
+    $txt = "🛠 *Painel de Controle do Site*\n\n"
+         . "👤 *Modelo Atual:* `{$curr_nome}`\n"
+         . "📱 *Instagram:* `{$curr_insta}`\n"
+         . "💬 *WhatsApp:* `+{$curr_whatsapp}`\n"
+         . "📸 *Avatar:* `{$curr_avatar}`\n"
+         . "🖼️ *Banner:* `{$curr_banner}`\n"
+         . "📂 *Grid:* `{$grid_count}` mídias adicionadas\n\n"
+         . "Escolha o que deseja editar:";
+
     $params = [
         'chat_id' => $chat_id,
-        'text' => "🛠 *Painel de Controle do Site*\n\nEscolha o que deseja editar:",
+        'text' => $txt,
         'parse_mode' => 'Markdown',
         'reply_markup' => $keyboard
     ];

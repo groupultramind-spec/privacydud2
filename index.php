@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'config.php';
 
 // 1. Processar verificação do desafio Javascript (Anti-Leads Falsos e Bots de Varredura)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_challenge') {
@@ -51,11 +52,45 @@ elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) $ip = explode(',', $_SERVER['H
 
 $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
+// Função para notificar bot bloqueado no Telegram
+function notifyBotBlocked($ip, $reason, $ua) {
+    if (defined('TELEGRAM_BOT_TOKEN') && defined('TELEGRAM_CHAT_ID') && !empty(TELEGRAM_BOT_TOKEN)) {
+        $msg = "🛡️ *Acesso Bloqueado (Cloaker)*\n"
+             . "🌐 IP: `{$ip}`\n"
+             . "🔍 Motivo: *{$reason}*\n"
+             . "📱 Agent: `{$ua}`";
+             
+        $url = "https://api.telegram.org/bot" . TELEGRAM_BOT_TOKEN . "/sendMessage";
+        $data = [
+            'chat_id' => TELEGRAM_CHAT_ID,
+            'text' => $msg,
+            'parse_mode' => 'Markdown'
+        ];
+        
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_exec($ch);
+        curl_close($ch);
+    }
+}
+
 // Função para registrar bot e mostrar página segura
 function blockBot($reason) {
     $_SESSION['is_real_user'] = false;
-    // Opcional: log do bot para debug
-    // file_put_contents('bots.log', date('Y-m-d H:i:s') . " - Bot Blocked: $reason | IP: " . $_SERVER['REMOTE_ADDR'] . "\n", FILE_APPEND);
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'N/A';
+    
+    // Notifica no Telegram
+    notifyBotBlocked($ip, $reason, $ua);
+    
+    // Log do bot para debug local
+    file_put_contents('bots.log', date('Y-m-d H:i:s') . " - Bot Blocked: $reason | IP: $ip\n", FILE_APPEND);
+    
     include 'safe.html';
     exit;
 }

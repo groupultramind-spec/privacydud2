@@ -1699,7 +1699,7 @@ foreach ($gridItems as $index => $media) {
                 }
             }
             if (empty($filesPadrao)) {
-                $filesPadrao = ['images/fotoeduarda1.jpg', 'media/videoeduarda3.mp4', 'media/videoeduarda4.mp4'];
+                $filesPadrao = ['media/videoeduarda3.mp4', 'media/videoeduarda4.mp4', 'media/videoeduarda1.mp4', 'media/videoeduarda2.mp4'];
             }
 
             $filesAdicionadas = !empty($siteData['grid']) && is_array($siteData['grid']) ? $siteData['grid'] : [];
