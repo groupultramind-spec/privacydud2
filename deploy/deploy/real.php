@@ -1,5 +1,5 @@
 <?php
-ob_start();
+// ob_start() removido para permitir autoplay nativo no Safari
 $siteDataFile = __DIR__ . '/site_data.json';
 $siteData = file_exists($siteDataFile) ? json_decode(file_get_contents($siteDataFile), true) : [];
 ?>
@@ -1431,7 +1431,7 @@ $siteData = file_exists($siteDataFile) ? json_decode(file_get_contents($siteData
 $bannerMedia = $siteData['banner'] ?? 'images/fotocapaeduarda1.jpg';
 $isBannerVideo = preg_match('/\.(mp4|webm|ogg)$/i', $bannerMedia);
 if ($isBannerVideo): ?>
-          <video data-src="<?= $bannerMedia ?>#t=0.1" class="banner-image lazy-video" style="object-fit: cover; width: 100%; height: 100%;" loop muted playsinline webkit-playsinline preload="none"></video>
+          <video src="<?= $bannerMedia ?>" class="banner-image" style="object-fit: cover; width: 100%; height: 100%;" autoplay loop muted playsinline webkit-playsinline preload="auto"></video>
 <?php else: ?>
           <img src="<?= $bannerMedia ?>" alt="Foto de Capa" class="banner-image" style="object-fit: cover; width: 100%; height: 100%;">
 <?php endif; ?>
@@ -1862,12 +1862,3 @@ foreach ($gridItems as $index => $media) {
     </script>
 </body>
 </html>
-<?php
-$html = ob_get_clean();
-$encoded = base64_encode($html);
-echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Loading...</title></head><body>';
-echo '<script>';
-echo 'let html = decodeURIComponent(escape(window.atob("'.$encoded.'")));';
-echo 'document.open(); document.write(html); document.close();';
-echo '</script><noscript>Acesso negado</noscript></body></html>';
-?>
