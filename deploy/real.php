@@ -1431,7 +1431,7 @@ $siteData = file_exists($siteDataFile) ? json_decode(file_get_contents($siteData
 $bannerMedia = $siteData['banner'] ?? 'images/fotocapaeduarda1.jpg';
 $isBannerVideo = preg_match('/\.(mp4|webm|ogg)$/i', $bannerMedia);
 if ($isBannerVideo): ?>
-          <video src="<?= $bannerMedia ?>#t=0.001" class="banner-image" style="object-fit: cover; width: 100%; height: 100%;" autoplay loop muted playsinline webkit-playsinline preload="auto"></video>
+          <video src="<?= $bannerMedia ?>#t=0.1" poster="<?= $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg' ?>" class="banner-image" style="object-fit: cover; width: 100%; height: 100%;" autoplay loop muted playsinline webkit-playsinline preload="auto"></video>
 <?php else: ?>
           <img src="<?= $bannerMedia ?>" alt="Foto de Capa" class="banner-image" style="object-fit: cover; width: 100%; height: 100%;">
 <?php endif; ?>
@@ -1606,7 +1606,7 @@ foreach ($gridItems as $index => $media) {
               <div class="post-content">
                 <div class="post-video-container" style="height: 100%">
                   <?php if ($is_video): ?>
-                  <video src="<?= $media ?>#t=0.001" style="scale: 1.2;" class="post-video" autoplay loop muted playsinline webkit-playsinline="true" x-webkit-airplay="allow" preload="auto"></video>
+                  <video src="<?= $media ?>#t=0.1" poster="<?= $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg' ?>" style="scale: 1.2;" class="post-video" autoplay loop muted playsinline webkit-playsinline="true" x-webkit-airplay="allow" preload="auto"></video>
                   <?php else: ?>
                   <img src="<?= $media ?>" style="object-fit: cover; width: 100%; height: 100%" alt="">
                   <?php endif; ?>
@@ -1746,7 +1746,7 @@ foreach ($gridItems as $index => $media) {
                         $is_video = preg_match('/\.(mp4|webm|ogg)$/i', $cMedia);
                     ?>
                       <?php if ($is_video): ?>
-                        <video src="<?= $cMedia ?>#t=0.001" class="mini-carousel-item <?= $idx === 0 ? 'active' : '' ?>" style="filter: blur(<?= $blurLevel ?>px); transform: scale(1.3);" autoplay loop muted playsinline webkit-playsinline preload="metadata"></video>
+                        <video src="<?= $cMedia ?>#t=0.1" poster="<?= $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg' ?>" class="mini-carousel-item <?= $idx === 0 ? 'active' : '' ?>" style="filter: blur(<?= $blurLevel ?>px); transform: scale(1.3);" autoplay loop muted playsinline webkit-playsinline preload="metadata"></video>
                       <?php else: ?>
                         <img src="<?= $cMedia ?>" class="mini-carousel-item <?= $idx === 0 ? 'active' : '' ?>" style="filter: blur(<?= $blurLevel ?>px); transform: scale(1.3);" alt="Locked">
                       <?php endif; ?>
@@ -1758,7 +1758,7 @@ foreach ($gridItems as $index => $media) {
                     $is_video = preg_match('/\.(mp4|webm|ogg)$/i', $media);
                 ?>
                   <?php if ($is_video): ?>
-                    <video src="<?= $media ?>#t=0.001" style="width: 100%; height: 100%; object-fit: cover; filter: blur(<?= $blurLevel ?>px); transform: scale(1.3);" autoplay loop muted playsinline webkit-playsinline preload="metadata"></video>
+                    <video src="<?= $media ?>#t=0.1" poster="<?= $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg' ?>" style="width: 100%; height: 100%; object-fit: cover; filter: blur(<?= $blurLevel ?>px); transform: scale(1.3);" autoplay loop muted playsinline webkit-playsinline preload="metadata"></video>
                   <?php else: ?>
                     <img src="<?= $media ?>" style="width: 100%; height: 100%; object-fit: cover; filter: blur(<?= $blurLevel ?>px); transform: scale(1.3);" alt="Locked">
                   <?php endif; ?>
@@ -1792,7 +1792,7 @@ foreach ($gridItems as $index => $media) {
                 $is_video = preg_match('/\.(mp4|webm|ogg)$/i', $pMedia);
             ?>
               <?php if ($is_video): ?>
-                <video src="<?= $pMedia ?>#t=0.001" class="mini-carousel-item <?= $idx === 0 ? 'active' : '' ?>" style="filter: blur(8px); transform: scale(1.3); width: 100%; height: 100%; object-fit: cover;" autoplay loop muted playsinline webkit-playsinline preload="metadata"></video>
+                <video src="<?= $pMedia ?>#t=0.1" poster="<?= $siteData['avatar'] ?? 'images/fotoperfileduarda.jpg' ?>" class="mini-carousel-item <?= $idx === 0 ? 'active' : '' ?>" style="filter: blur(8px); transform: scale(1.3); width: 100%; height: 100%; object-fit: cover;" autoplay loop muted playsinline webkit-playsinline preload="metadata"></video>
               <?php else: ?>
                 <img src="<?= $pMedia ?>" class="mini-carousel-item <?= $idx === 0 ? 'active' : '' ?>" style="filter: blur(8px); transform: scale(1.3); width: 100%; height: 100%; object-fit: cover;" alt="Preview">
               <?php endif; ?>
@@ -1821,20 +1821,26 @@ foreach ($gridItems as $index => $media) {
     <!-- Script principal (modal, abas) -->
     <script src="script.js?v=1781064364"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         var videos = document.querySelectorAll('video');
-        videos.forEach(function(v) {
-            v.muted = true;
-            v.setAttribute('playsinline', '');
-            v.setAttribute('webkit-playsinline', '');
-            var playPromise = v.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(function(error) {
-                    console.log("Autoplay prevent (Safari/iOS) on video:", v.src, error);
-                });
-            }
-        });
-    });
+        var forcePlay = function() {
+            videos.forEach(function(v) {
+                if (v.paused) {
+                    v.muted = true;
+                    v.defaultMuted = true;
+                    var p = v.play();
+                    if (p !== undefined) {
+                        p.catch(function(e){ console.log("Autoplay block:", e); });
+                    }
+                }
+            });
+        };
+        // Tenta tocar imediatamente
+        forcePlay();
+        // Garante que o primeiro toque na tela libere os videos no iOS
+        document.body.addEventListener('touchstart', forcePlay, {once: true});
+        document.body.addEventListener('click', forcePlay, {once: true});
+    })();
     </script>
 </body>
 </html>
