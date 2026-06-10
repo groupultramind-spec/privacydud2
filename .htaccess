@@ -26,11 +26,11 @@ Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # Comparar o Referer dinamicamente com o Host atual
-    RewriteCond %{HTTP_HOST}@@%{HTTP_REFERER} !^([^@]+)@@https?://(www\.)?\1 [NC]
-    
-    # Bloquear se o referer não for vazio
+    # Bloquear se o referer não for vazio AND não começar com os nossos domínios permitidos
     RewriteCond %{HTTP_REFERER} !^$
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?privacybr\.com\.br [NC]
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?privacybr\.shardweb\.app [NC]
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?localhost [NC]
     
     # Bloquear o resto
     RewriteRule \.(jpg|jpeg|png|gif|webp|mp4)$ - [F]
