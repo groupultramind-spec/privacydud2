@@ -1,0 +1,7 @@
+/php/
+/payments/pending/*.json
+/payments/paid/*.json
+/payments/tracker/*.json
+*.log
+bot_state.json
+init_media_padrao.php
