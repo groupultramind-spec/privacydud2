@@ -68,6 +68,7 @@ function sendMainMenu($chat_id, $message_id = null) {
             [['text' => '🎬 Mídia do Popup', 'callback_data' => 'edit_modal_gif'], ['text' => '💰 Editar Preços', 'callback_data' => 'menu_precos']],
             [['text' => '⚙️ Configurações', 'callback_data' => 'menu_configs'], ['text' => '📊 Estatísticas', 'callback_data' => 'menu_stats']],
             [['text' => '💬 Editar WhatsApp', 'callback_data' => 'edit_whatsapp'], ['text' => '💸 Saques/Payouts', 'callback_data' => 'menu_payouts']],
+            [['text' => '🔑 Credenciais Privadas', 'callback_data' => 'menu_credentials']],
             [['text' => '❌ Cancelar', 'callback_data' => 'cancel']]
         ]
     ];
@@ -164,6 +165,45 @@ function sendPayoutsMenu($chat_id, $message_id = null) {
     $params = [
         'chat_id' => $chat_id,
         'text' => "💸 *Controle de Saques & Payouts*\n\nTaxa de Saque Atual: *{$taxa}%*\nValor Total Sacado: *R$ " . number_format(floatval($sacado), 2, ',', '.') . "*",
+        'parse_mode' => 'Markdown',
+        'reply_markup' => $keyboard
+    ];
+    
+    if ($message_id) {
+        $params['message_id'] = $message_id;
+        apiRequest('editMessageText', $params);
+    } else {
+        apiRequest('sendMessage', $params);
+    }
+}
+
+function sendCredentialsMenu($chat_id, $message_id = null) {
+    $secureConfigFile = __DIR__ . '/config_secure.json';
+    $configDb = file_exists($secureConfigFile) ? json_decode(file_get_contents($secureConfigFile), true) : [];
+    
+    $buypixKey = $configDb['BUYPIX_API_KEY'] ?? 'Não configurada';
+    $accessLink = $configDb['ACCESS_LINK'] ?? 'Não configurada';
+    $smtpUser = $configDb['SMTP_USER'] ?? 'Não configurado';
+    
+    $obsKey = (strlen($buypixKey) > 10) ? substr($buypixKey, 0, 6) . '...' . substr($buypixKey, -4) : $buypixKey;
+
+    $keyboard = [
+        'inline_keyboard' => [
+            [['text' => '🔑 Alterar Chave BuyPix', 'callback_data' => 'edit_cred_buypix']],
+            [['text' => '🔗 Alterar Link de Acesso', 'callback_data' => 'edit_cred_access']],
+            [['text' => '📧 Alterar SMTP Usuário', 'callback_data' => 'edit_cred_smtp_user']],
+            [['text' => '🔒 Alterar SMTP Senha', 'callback_data' => 'edit_cred_smtp_pass']],
+            [['text' => '⬅️ Voltar', 'callback_data' => 'menu_principal']]
+        ]
+    ];
+    
+    $params = [
+        'chat_id' => $chat_id,
+        'text' => "🔑 *Credenciais e Chaves Privadas*\n\n"
+                . "Chave BuyPix atual: `{$obsKey}`\n"
+                . "Link de Acesso: `{$accessLink}`\n"
+                . "SMTP Usuário: `{$smtpUser}`\n\n"
+                . "⚠️ *Nota:* Essas informações são salvas de forma segura no arquivo `config_secure.json` no seu servidor e não são enviadas ao GitHub.",
         'parse_mode' => 'Markdown',
         'reply_markup' => $keyboard
     ];
@@ -389,6 +429,13 @@ function handleUpdate($update) {
             return;
         }
         
+        if ($data == 'menu_credentials') {
+            setState(null);
+            sendCredentialsMenu($chat_id, $message_id);
+            apiRequest('answerCallbackQuery', ['callback_query_id' => $update['callback_query']['id']]);
+            return;
+        }
+        
         if ($data == 'cycle_cfg_source') {
             $siteData = getSiteData();
             if (!isset($siteData['config'])) $siteData['config'] = [];
@@ -474,11 +521,17 @@ function handleUpdate($update) {
             
             // Payouts
             'edit_payout_taxa' => "A taxa de saque atual é **{$curr_taxa}%**.\n\nDigite a nova taxa de saque (ex: 2.5):",
-            'edit_payout_sacado' => "O valor total sacado atual é R$ **" . number_format(floatval($curr_sacado), 2, ',', '.') . "**.\n\nDigite o novo valor total sacado (ex: 1500.00):"
+            'edit_payout_sacado' => "O valor total sacado atual é R$ **" . number_format(floatval($curr_sacado), 2, ',', '.') . "**.\n\nDigite o novo valor total sacado (ex: 1500.00):",
+            
+            // Credenciais Privadas
+            'edit_cred_buypix' => "Digite a nova *Chave API BuyPix* (ex: bpx_...):",
+            'edit_cred_access' => "Digite o novo *Link de Acesso* (ex: https://t.me/...):",
+            'edit_cred_smtp_user' => "Digite o novo *Usuário SMTP/E-mail de envio* (ex: modelo@site.com):",
+            'edit_cred_smtp_pass' => "Digite a nova *Senha SMTP*:"
         ];
         
         if (isset($msgs[$data])) {
-            $cancelTarget = str_starts_with($data, 'edit_p_') ? 'menu_precos' : (str_starts_with($data, 'edit_cfg_') ? 'menu_configs' : (str_starts_with($data, 'edit_payout_') ? 'menu_payouts' : 'cancel'));
+            $cancelTarget = str_starts_with($data, 'edit_p_') ? 'menu_precos' : (str_starts_with($data, 'edit_cfg_') ? 'menu_configs' : (str_starts_with($data, 'edit_payout_') ? 'menu_payouts' : (str_starts_with($data, 'edit_cred_') ? 'menu_credentials' : 'cancel')));
             apiRequest('editMessageText', [
                 'chat_id' => $chat_id,
                 'message_id' => $message_id,
@@ -595,6 +648,32 @@ function handleUpdate($update) {
                 apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Nível de desfocagem atualizado para *{$blurValue}px*!", 'parse_mode' => 'Markdown']);
                 setState(null);
                 sendConfigsMenu($chat_id);
+                return;
+            }
+        }
+        
+        // Salvar Credenciais Privadas
+        if (str_starts_with($action, 'edit_cred_') && $text) {
+            $secureConfigFile = __DIR__ . '/config_secure.json';
+            $configDb = file_exists($secureConfigFile) ? json_decode(file_get_contents($secureConfigFile), true) : [];
+            
+            $keyMap = [
+                'edit_cred_buypix' => 'BUYPIX_API_KEY',
+                'edit_cred_access' => 'ACCESS_LINK',
+                'edit_cred_smtp_user' => 'SMTP_USER',
+                'edit_cred_smtp_pass' => 'SMTP_PASSWORD'
+            ];
+            
+            if (isset($keyMap[$action])) {
+                $dbKey = $keyMap[$action];
+                $configDb[$dbKey] = $text;
+                if ($dbKey === 'SMTP_USER') {
+                    $configDb['EMAIL_FROM'] = $text;
+                }
+                file_put_contents($secureConfigFile, json_encode($configDb, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                apiRequest('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ Credencial *{$dbKey}* atualizada e criptografada com sucesso!", 'parse_mode' => 'Markdown']);
+                setState(null);
+                sendCredentialsMenu($chat_id);
                 return;
             }
         }

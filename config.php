@@ -5,13 +5,56 @@ date_default_timezone_set('America/Sao_Paulo');
  * Ecompag API Integration
  */
 
+// Caminho do arquivo de configuração seguro (salvo fora do git)
+$secureConfigFile = __DIR__ . '/config_secure.json';
+
+// Valores padrão
+$configDb = [
+    'BUYPIX_API_KEY' => 'bpx_8NHZUlae4L5ykZsdFGIXyFmryV6wpB0X2M0wWuN0',
+    'BUYPIX_WEBHOOK_SECRET' => 'whsec_sua_secret_aqui',
+    'TELEGRAM_BOT_TOKEN' => '8236778290:AAGXUQWm-D3lCoOAch7cgMEf-b4mm4XZ5Mk',
+    'TELEGRAM_CHAT_ID' => '-1003902287618',
+    'EMAIL_FROM' => 'seuemailaqui@site.com',
+    'EMAIL_FROM_NAME' => 'Privacy - Eduarda',
+    'EMAIL_SUBJECT' => 'Pagamento Confirmado - Acesso Liberado!',
+    'SMTP_HOST' => 'smtp.hostinger.com',
+    'SMTP_PORT' => 587,
+    'SMTP_USER' => 'seuemailaqui@site.com',
+    'SMTP_PASSWORD' => 'suasenhaaqui',
+    'ACCESS_LINK' => 'https://t.me/+Jxws5Mi7ZgFlYjJh',
+    'ACCESS_TOKEN_SALT' => 'Pr1v@cyEdu4rd@2026#xK9'
+];
+
+if (file_exists($secureConfigFile)) {
+    $loaded = json_decode(file_get_contents($secureConfigFile), true);
+    if (is_array($loaded)) {
+        $configDb = array_merge($configDb, $loaded);
+    }
+} else {
+    // Salva o inicial para garantir que o arquivo exista
+    file_put_contents($secureConfigFile, json_encode($configDb, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+}
+
 // Credenciais BuyPix
-define('BUYPIX_API_KEY', 'bpx_8NHZUlae4L5ykZsdFGIXyFmryV6wpB0X2M0wWuN0');
-define('BUYPIX_WEBHOOK_SECRET', 'whsec_sua_secret_aqui');
+define('BUYPIX_API_KEY', $configDb['BUYPIX_API_KEY']);
+define('BUYPIX_WEBHOOK_SECRET', $configDb['BUYPIX_WEBHOOK_SECRET']);
 
 // Configurações do Telegram Bot
-define('TELEGRAM_BOT_TOKEN', '8236778290:AAGXUQWm-D3lCoOAch7cgMEf-b4mm4XZ5Mk'); // Token gerado no BotFather
-define('TELEGRAM_CHAT_ID', '-1003902287618'); // Seu ID do Telegram
+define('TELEGRAM_BOT_TOKEN', $configDb['TELEGRAM_BOT_TOKEN']);
+define('TELEGRAM_CHAT_ID', $configDb['TELEGRAM_CHAT_ID']);
+define('ACCESS_LINK', $configDb['ACCESS_LINK']);
+define('ACCESS_TOKEN_SALT', $configDb['ACCESS_TOKEN_SALT']);
+
+// Configurações de Email
+define('EMAIL_FROM', $configDb['EMAIL_FROM']);
+define('EMAIL_FROM_NAME', $configDb['EMAIL_FROM_NAME']);
+define('EMAIL_SUBJECT', $configDb['EMAIL_SUBJECT']);
+
+// Configurações SMTP
+define('SMTP_HOST', $configDb['SMTP_HOST']);
+define('SMTP_PORT', intval($configDb['SMTP_PORT']));
+define('SMTP_USER', $configDb['SMTP_USER']);
+define('SMTP_PASSWORD', $configDb['SMTP_PASSWORD']);
 
 // URL do site detectada automaticamente
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -23,23 +66,6 @@ define('WEBHOOK_URL', SITE_URL . '/webhook.php');
 define('PAYMENTS_DIR', __DIR__ . '/payments');
 define('PENDING_DIR', PAYMENTS_DIR . '/pending');
 define('PAID_DIR', PAYMENTS_DIR . '/paid');
-
-// Configurações de Email
-define('EMAIL_FROM', 'seuemailaqui@site.com');
-define('EMAIL_FROM_NAME', 'Privacy - Eduarda');
-define('EMAIL_SUBJECT', 'Pagamento Confirmado - Acesso Liberado!');
-
-// Configurações SMTP
-define('SMTP_HOST', 'smtp.hostinger.com');
-define('SMTP_PORT', 587);
-define('SMTP_USER', 'seuemailaqui@site.com');
-define('SMTP_PASSWORD', 'suasenhaaqui');
-
-// Link de Acesso ao Conteúdo
-define('ACCESS_LINK', 'https://t.me/+Jxws5Mi7ZgFlYjJh');
-
-// Salt para validação do token de acesso
-define('ACCESS_TOKEN_SALT', 'Pr1v@cyEdu4rd@2026#xK9');
 
 // Criar diretórios se não existirem
 if (!file_exists(PAYMENTS_DIR)) mkdir(PAYMENTS_DIR, 0755, true);
