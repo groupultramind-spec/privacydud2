@@ -6,3 +6,4 @@
 bot_state.json
 init_media_padrao.php
 /config_secure.json
+.env
